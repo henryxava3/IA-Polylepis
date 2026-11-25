@@ -1,0 +1,11 @@
+'use client';
+import { useState } from 'react';
+import { ArrowUpRight, GitBranch } from 'lucide-react';
+import { useApi, safeLink } from '@/lib/api';
+import { PageHeading, Empty, ErrorNotice, Loading } from '@/components/common';
+type Taxon = { gbif_key: number; scientific_name: string; canonical_name: string; status: string; rank: string; source_url: string; retrieved_at: string; synonyms: string[] };
+export default function TaxonomyPage() {
+  const taxa = useApi<Taxon[]>('/taxa'); const [q, setQ] = useState('');
+  const filtered = taxa.data?.filter(t => t.rank === 'SPECIES' && t.canonical_name.toLowerCase().includes(q.toLowerCase()));
+  return <div className="page-wrap"><PageHeading eyebrow="04 / ORDENAR LOS NOMBRES" title={<>Un nombre, <em>su historia.</em></>} description="Nombres científicos y sinónimos conservando la fuente de cada correspondencia." /><div className="notice"><GitBranch size={22} /><div><strong>Referencia operativa: GBIF Backbone</strong><p>Esta es una instantánea de GBIF. El contraste con POWO/Kew está pendiente; no representa una revisión taxonómica definitiva.</p></div></div><label className="taxonomy-search">Buscar un nombre<input value={q} onChange={e => setQ(e.target.value)} placeholder="Polylepis…" /></label>{taxa.loading ? <Loading /> : taxa.error ? <ErrorNotice message={taxa.error} retry={taxa.reload} /> : filtered?.length === 0 ? <Empty title="No hay nombres para esta selección" description="Sincroniza la referencia taxonómica en la estación local o cambia la búsqueda." setup /> : <div className="taxon-list">{filtered?.map(t => <details key={t.gbif_key}><summary><span><em>{t.canonical_name}</em><small>{t.status === 'ACCEPTED' ? 'Aceptado por GBIF' : t.status}</small></span><ArrowUpRight size={18} /></summary><div className="taxon-detail"><p>{t.scientific_name}</p><h4>Sinónimos en la fuente</h4>{t.synonyms.length ? <ul>{t.synonyms.map(s => <li key={s}>{s}</li>)}</ul> : <p>No se recuperaron sinónimos.</p>}<a className="text-link" href={safeLink(t.source_url)} target="_blank" rel="noreferrer">Consultar GBIF <ArrowUpRight size={14} /></a><small>Consultado: {new Date(t.retrieved_at).toLocaleDateString('es-PE')}</small></div></details>)}</div>}</div>;
+}

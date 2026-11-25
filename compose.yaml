@@ -1,0 +1,44 @@
+name: polylepis-local
+services:
+  db:
+    build:
+      context: .
+      dockerfile: infra/db.Dockerfile
+    environment:
+      POSTGRES_USER: polylepis
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-polylepis_local}
+      POSTGRES_DB: polylepis
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U polylepis -d polylepis"]
+      interval: 5s
+      retries: 20
+  api:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://polylepis:${POSTGRES_PASSWORD:-polylepis_local}@db:5432/polylepis
+      DATA_DIR: /data
+      DATABASE_EXTENSIONS: "true"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - documents:/data
+    depends_on:
+      db:
+        condition: service_healthy
+  web:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://api:8000
+      NEXT_TELEMETRY_DISABLED: "1"
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - api
+volumes:
+  database:
+  documents:
